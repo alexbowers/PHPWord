@@ -655,14 +655,12 @@ class TemplateProcessor
     public function cloneBlock($blockname, $clones = 1, $replace = true, $indexVariables = false, $variableReplacements = null)
     {
         $xmlBlock = null;
-        preg_match(
-            '/(<\?xml.*)(<w:p\b.*>\${' . $blockname . '}<\/w:.*?p>)(.*)(<w:p\b.*\${\/' . $blockname . '}<\/w:.*?p>)/is',
-            $this->tempDocumentMainPart,
-            $matches
-        );
-
-        if (isset($matches[3])) {
-            $xmlBlock = $matches[3];
+       
+        $matches = array();
+        list($matches[1],$matches[2],$matches[3]) = $this->getBlocks($blockname);
+        if (isset($matches[2])&&$matches[2]) {
+           
+            $xmlBlock = $matches[2];
             if ($indexVariables) {
                 $cloned = $this->indexClonedVariables($clones, $xmlBlock);
             } elseif ($variableReplacements !== null && is_array($variableReplacements)) {
@@ -673,17 +671,39 @@ class TemplateProcessor
                     $cloned[] = $xmlBlock;
                 }
             }
-
+ 
             if ($replace) {
                 $this->tempDocumentMainPart = str_replace(
-                    $matches[2] . $matches[3] . $matches[4],
+                    $matches[1] . $matches[2] . $matches[3],
                     implode('', $cloned),
                     $this->tempDocumentMainPart
                 );
             }
         }
-
+ 
         return $xmlBlock;
+    }
+
+    /**
+    * Get part of block for cloneBlock
+    *
+    * @param string $blockName Block name to clone
+    *
+    * @return array
+    */
+    private function getBlocks($blockName){
+        $dataXML = $this->tempDocumentMainPart;
+        if(stripos($dataXML,'{'.$blockName.'}') && stripos($dataXML,'{/'.$blockName.'}')){
+            $startBlock1 = strrpos(substr($dataXML,0,stripos($dataXML,'{'.$blockName.'}')), '<w:p ');
+            $lengthBlock1 = (stripos(substr($dataXML,$startBlock1),'p>')+2);
+            $block1 = substr($dataXML,$startBlock1,$lengthBlock1);
+            $startBlock3 = strrpos(substr($dataXML,0,stripos($dataXML,'{/'.$blockName.'}')), '<w:p ');
+            $lengthBlock3 = (stripos(substr($dataXML,$startBlock3),'p>')+2);
+            $block3 = substr($dataXML,$startBlock3,$lengthBlock3);
+            $block2 = substr($dataXML,$startBlock1+$lengthBlock1,$startBlock3-($startBlock1+$lengthBlock1));
+            return array($block1, $block2, $block3);
+        }
+        return array(0,0,0);
     }
 
     /**
